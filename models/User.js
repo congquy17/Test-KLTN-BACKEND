@@ -8,7 +8,11 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: false },
     phone: { type: String },
     avatar: { type: String }, // Lưu link ảnh avatar
-    role: { type: String, enum: ["admin", "user"], default: "user" },
+    role: {
+      type: String,
+      enum: ["admin", "user", "adminChat"],
+      default: "user",
+    },
   },
   { timestamps: true }
 );

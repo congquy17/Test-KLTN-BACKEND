@@ -1,62 +1,80 @@
-const { Server } = require("socket.io");
-const mongoose = require("mongoose");
 const Chat = require("../models/Chat");
 
-let io;
-
 const initializeSocket = (server) => {
-  io = new Server(server, {
+  const io = require("socket.io")(server, {
     cors: {
-      origin: "http://localhost:5173", // Cho phép nguồn gốc frontend
-      methods: ["GET", "POST"], // Các phương thức HTTP được phép
-      allowedHeaders: ["Content-Type", "Authorization"], // Header được phép
-      credentials: true, // Nếu cần gửi cookie hoặc thông tin xác thực
+      origin: process.env.FRONTEND_URL || "http://localhost:5173",
+      methods: ["GET", "POST"],
     },
   });
+
   io.on("connection", (socket) => {
-    console.log("A user connected", socket.id);
+    console.log("User connected:", socket.id);
 
-    // Khi người dùng kết nối, tham gia phòng chat riêng của user và admin
-    socket.on("joinChat", ({ userId, adminId }) => {
-      socket.join(userId);
-      socket.join(adminId);
-      console.log(`User ${userId} and Admin ${adminId} joined the chat`);
-    });
-
-    // Khi người dùng gửi tin nhắn
-    socket.on("sendMessage", async (data) => {
-      const { userId, adminId, content } = data;
-
-      // Chuyển userId và adminId thành ObjectId hợp lệ
-      const userObjectId = new mongoose.Types.ObjectId(userId); // Sử dụng new
-      const adminObjectId = new mongoose.Types.ObjectId(adminId); // Sử dụng new
-
-      // Tạo hoặc cập nhật chat
-      let chat = await Chat.findOne({
-        user: userObjectId,
-        admin: adminObjectId,
-      });
-
-      if (!chat) {
-        chat = new Chat({
-          user: userObjectId,
-          admin: adminObjectId,
-          messages: [],
+    // Gửi tin nhắn
+    socket.on("sendMessage", async ({ senderId, receiverId, content }) => {
+      try {
+        // Tìm hoặc tạo đoạn chat giữa sender và receiver
+        let chat = await Chat.findOne({
+          $or: [
+            { user: senderId, admin: receiverId },
+            { user: receiverId, admin: senderId },
+          ],
         });
+
+        if (!chat) {
+          // Nếu chưa có chat, tạo mới
+          chat = new Chat({
+            user: senderId,
+            admin: receiverId,
+            messages: [],
+          });
+          await chat.save();
+          console.log("New chat created:", chat._id);
+        }
+
+        // Thêm tin nhắn mới
+        const newMessage = { sender: senderId, content };
+        chat.messages.push(newMessage);
+        await chat.save();
+
+        // Phát tin nhắn tới tất cả người trong phòng
+        io.to(chat._id.toString()).emit("messageReceived", newMessage);
+      } catch (error) {
+        console.error("Error sending message:", error);
       }
-
-      // Thêm tin nhắn mới vào chat
-      chat.messages.push({ sender: userObjectId, content });
-      await chat.save();
-
-      // Gửi tin nhắn đến cả user và admin
-      io.to(userId).emit("roomChat", chat);
-      io.to(adminId).emit("roomChat", chat);
     });
 
-    // Khi người dùng ngắt kết nối
+    socket.on("joinRoom", async ({ senderId, receiverId }) => {
+      try {
+        // Tìm hoặc tạo đoạn chat giữa sender và receiver
+        let chat = await Chat.findOne({
+          $or: [
+            { user: senderId, admin: receiverId },
+            { user: receiverId, admin: senderId },
+          ],
+        });
+
+        if (!chat) {
+          chat = new Chat({
+            user: senderId,
+            admin: receiverId,
+            messages: [],
+          });
+          await chat.save();
+        }
+
+        const chatId = chat._id.toString();
+        socket.join(chatId);
+        socket.emit("roomMessages", chat.messages);
+        console.log(`User joined room: ${chatId}`);
+      } catch (error) {
+        console.error("Error joining room:", error);
+      }
+    });
+
     socket.on("disconnect", () => {
-      console.log("A user disconnected");
+      console.log("User disconnected:", socket.id);
     });
   });
 };

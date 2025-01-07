@@ -7,6 +7,7 @@ const setupSwagger = require("./config/swagger");
 const tourRoutes = require("./routes/tourRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const authRoutes = require("./routes/authRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 const initializeSocket = require("./socket/socket");
 
 dotenv.config();
@@ -19,7 +20,14 @@ connectDB();
 // Middleware CORS
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173", // URL frontend
+    origin: (origin, callback) => {
+      const whitelist = [process.env.FRONTEND_URL || "http://localhost:5173"];
+      if (!origin || whitelist.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE"], // Các phương thức HTTP được phép
     allowedHeaders: ["Content-Type", "Authorization"], // Các header được phép
     credentials: true, // Cho phép gửi cookie
@@ -37,6 +45,7 @@ setupSwagger(app);
 app.use("/api/auth", authRoutes);
 app.use("/api/tours", tourRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("api/chats", chatRoutes);
 
 // Middleware xử lý lỗi (nếu có lỗi)
 app.use((err, req, res, next) => {
