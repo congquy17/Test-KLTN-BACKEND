@@ -45,7 +45,7 @@ setupSwagger(app);
 app.use("/api/auth", authRoutes);
 app.use("/api/tours", tourRoutes);
 app.use("/api/categories", categoryRoutes);
-app.use("api/chats", chatRoutes);
+app.use("/api/chats", chatRoutes);
 
 // Middleware xử lý lỗi (nếu có lỗi)
 app.use((err, req, res, next) => {

@@ -10,7 +10,50 @@ const initializeSocket = (server) => {
 
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
+    // Khi admin yêu cầu lấy danh sách conversations
+    socket.on("getAdminConversations", async ({ adminId }) => {
+      try {
+        const conversations = await Chat.find({ admin: adminId })
+          .sort({ updatedAt: -1 })
+          .populate("user", "name email avatar")
+          .populate("admin", "name email avatar");
 
+        socket.emit("adminConversationsList", conversations);
+      } catch (error) {
+        console.error("Error fetching admin conversations:", error);
+      }
+    });
+    socket.on("joinRoom", async ({ senderId, receiverId }) => {
+      try {
+        if (!senderId || !receiverId) {
+          // console.error("Invalid senderId or receiverId");
+          return;
+        }
+        // Tìm hoặc tạo đoạn chat giữa sender và receiver
+        let chat = await Chat.findOne({
+          $or: [
+            { user: senderId, admin: receiverId },
+            { user: receiverId, admin: senderId },
+          ],
+        });
+
+        if (!chat) {
+          chat = new Chat({
+            user: senderId,
+            admin: receiverId,
+            messages: [],
+          });
+          await chat.save();
+        }
+
+        const chatId = chat._id.toString();
+        socket.join(chatId);
+        socket.emit("roomMessages", chat.messages);
+        console.log(`User joined room: ${chatId}`);
+      } catch (error) {
+        console.error("Error joining room:", error);
+      }
+    });
     // Gửi tin nhắn
     socket.on("sendMessage", async ({ senderId, receiverId, content }) => {
       try {
@@ -42,34 +85,6 @@ const initializeSocket = (server) => {
         io.to(chat._id.toString()).emit("messageReceived", newMessage);
       } catch (error) {
         console.error("Error sending message:", error);
-      }
-    });
-
-    socket.on("joinRoom", async ({ senderId, receiverId }) => {
-      try {
-        // Tìm hoặc tạo đoạn chat giữa sender và receiver
-        let chat = await Chat.findOne({
-          $or: [
-            { user: senderId, admin: receiverId },
-            { user: receiverId, admin: senderId },
-          ],
-        });
-
-        if (!chat) {
-          chat = new Chat({
-            user: senderId,
-            admin: receiverId,
-            messages: [],
-          });
-          await chat.save();
-        }
-
-        const chatId = chat._id.toString();
-        socket.join(chatId);
-        socket.emit("roomMessages", chat.messages);
-        console.log(`User joined room: ${chatId}`);
-      } catch (error) {
-        console.error("Error joining room:", error);
       }
     });
 

@@ -3,6 +3,7 @@ const {
   getTours,
   createTour,
   getTourById,
+  getToursByCategory,
 } = require("../controllers/tourController");
 const multer = require("multer");
 const { storage } = require("../config/cloudinary");
@@ -19,7 +20,7 @@ router.post(
   ]),
   createTour
 );
-
+router.get("/category", getToursByCategory);
 router.get("/", getTours); // Lấy tất cả tours
 router.get("/:id", getTourById); // Lấy chi tiết tour theo _id
 

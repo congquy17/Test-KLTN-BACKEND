@@ -91,3 +91,33 @@ exports.createTour = async (req, res) => {
       .json({ message: "Error creating tour", error: error.message });
   }
 };
+exports.getToursByCategory = async (req, res) => {
+  try {
+    const { categoryName } = req.query;
+
+    console.log("Received categoryName:", categoryName); // Log để kiểm tra
+
+    // Tìm danh mục theo tên
+    const category = await Category.findOne({ name: categoryName });
+
+    if (!category) {
+      console.log("Category not found:", categoryName); // Log để kiểm tra
+      return res.status(404).json({ message: "Không tìm thấy danh mục" });
+    }
+
+    console.log("Found category:", category); // Log để kiểm tra
+
+    // Tìm các tours thuộc danh mục đó
+    const tours = await Tour.find({ category_id: category._id }).populate(
+      "category_id",
+      "name description"
+    );
+
+    console.log("Found tours:", tours); // Log để kiểm tra
+
+    res.status(200).json(tours);
+  } catch (error) {
+    console.error("Error fetching tours by category:", error.message);
+    res.status(500).json({ message: "Lỗi máy chủ", error: error.message });
+  }
+};

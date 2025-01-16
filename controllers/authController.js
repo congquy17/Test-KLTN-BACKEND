@@ -129,3 +129,23 @@ exports.googleLogin = async (req, res) => {
       .json({ message: "Google login failed.", error: error.message });
   }
 };
+exports.getAdminChat = async (req, res) => {
+  try {
+    const adminChats = await User.find({ role: "adminChat" });
+
+    if (!adminChats || adminChats.length === 0) {
+      return res.status(404).json({ message: "No adminChat available." });
+    }
+
+    // Lấy admin đầu tiên (hoặc có thể triển khai logic khác như Round Robin)
+    const adminChat = adminChats[0];
+
+    res.status(200).json({
+      message: "AdminChat fetched successfully.",
+      adminId: adminChat._id,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};

@@ -1,8 +1,7 @@
 const express = require("express");
-const { getChat } = require("../controllers/chatController");
+const { getAdminConversations } = require("../controllers/chatController");
 const router = express.Router();
 
-// Lấy chat giữa user và admin
-router.get("/:userId/:adminId", getChat);
-
+// Lấy danh sách conversations cho admin
+router.get("/adminchat/conversations", getAdminConversations);
 module.exports = router;

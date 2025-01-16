@@ -1,22 +1,22 @@
 const Chat = require("../models/Chat");
 
-// Tạo hoặc lấy chat giữa user và admin
-exports.getChat = async (req, res) => {
+exports.getAdminConversations = async (req, res) => {
   try {
-    const { userId, adminId } = req.params;
+    const { adminId } = req.query; // Lấy adminId từ query
 
-    // Tìm chat giữa user và admin
-    let chat = await Chat.findOne({ user: userId, admin: adminId });
-
-    if (!chat) {
-      // Nếu không có chat, tạo mới
-      chat = new Chat({ user: userId, admin: adminId, messages: [] });
-      await chat.save();
+    if (!adminId) {
+      return res.status(400).json({ message: "Admin ID is required." });
     }
 
-    return res.json(chat);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Server error" });
+    // Lấy tất cả các cuộc trò chuyện liên quan đến admin
+    const conversations = await Chat.find({ admin: adminId })
+      .sort({ updatedAt: -1 }) // Sắp xếp theo thời gian cập nhật mới nhất
+      .populate("user", "name email")
+      .populate("admin", "name email");
+
+    res.status(200).json(conversations);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
